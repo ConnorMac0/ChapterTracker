@@ -2,6 +2,8 @@ import os
 import spreadsheetID
 import pandas as pd
 import tkinter as tk
+from tkinter import ttk
+from ttkthemes import ThemedTk
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -12,18 +14,44 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 SPREADSHEET_ID = spreadsheetID.testsheet
 
-class GUI():
-    
-    def __init__(self) -> None:
-        self.root = tk.Tk()
-        self.root.title('ChapterTracker')
+root = ThemedTk(theme="plastik")
+root.title('ChapterTracker')
 
-        self.memberNames = open('memberNames.csv')
-        self.checkInList = None
-        self.excusedList = None
+frame = ttk.Frame(root)
+frame.pack()
 
-        
-        self.root.mainloop()
+widgets = ttk.LabelFrame(frame, text="Enter Data")
+widgets.grid(row=0, column=0, padx=10, pady=10)
+
+eventName = ttk.Entry(widgets)
+eventName.insert(0, "Event Name")
+eventName.bind("<FocusIn>", lambda e: eventName.delete(0, 'end'))
+eventName.grid(row=0, column=0, sticky='ew', padx=10, pady=5)
+
+eventDate = ttk.Entry(widgets)
+eventDate.insert(0, "DD/MM/YYYY")
+eventDate.bind("<FocusIn>", lambda e: eventDate.delete(0, 'end'))
+eventDate.grid(row=1, column=0, sticky='ew', padx=10, pady=5)
+
+checkInBtn = ttk.Button(widgets, text="Upload Check-In CSV")
+checkInBtn.grid(row=2, column=0, sticky='ew', padx=10, pady=5)
+
+abscenceBtn = ttk.Button(widgets, text="Upload Abscence CSV")
+abscenceBtn.grid(row=3, column=0, sticky='ew', padx=10, pady=5)
+
+seperator = ttk.Separator(widgets)
+seperator.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
+
+membersBtn = ttk.Button(widgets, text="Track Attendance")
+membersBtn.grid(row=5, column=0, sticky='ew', padx=10, pady=5)
+
+missingNames = ttk.LabelFrame(frame, text="Missing Names")
+missingNames.grid(row=0, column=1, padx=10, pady=10)
+
+namesText = tk.Text(missingNames, width=20, height=14)
+namesText.pack(padx=10, pady=5)
+
+root.mainloop()
 
 def record(service):
     checkIn = pd.read_csv('')
@@ -94,7 +122,3 @@ def main():
 
     except HttpError as error:
         print(error)
-
-
-if __name__ == "__main__":
-    GUI()
