@@ -1,5 +1,7 @@
 import os
 import spreadsheetID
+import pandas as pd
+import tkinter as tk
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -9,6 +11,52 @@ from googleapiclient.errors import HttpError
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 SPREADSHEET_ID = spreadsheetID.testsheet
+
+class GUI():
+    
+    def __init__(self) -> None:
+        self.root = tk.Tk()
+        self.root.title('ChapterTracker')
+
+        self.memberNames = open('memberNames.csv')
+        self.checkInList = None
+        self.excusedList = None
+
+        
+        self.root.mainloop()
+
+def record(service):
+    checkIn = pd.read_csv('')
+    names = pd.read_csv('')
+    excused = pd.read_csv('')
+
+    n = names['Names'].to_list()
+    ch = checkIn['Full Name'].to_list()
+    exName = excused['Full Name'].to_list()
+
+    for i in range(len(n)):
+        n[i] = n[i].lower().strip()
+
+    for i in range(len(ch)):
+        ch[i] = ch[i].lower().strip()
+
+    for i in range(len(exName)):
+        exName[i] = exName[i].lower().strip()
+
+    missing = []
+    absent = []
+
+    for i in n:
+        if (i not in ch) and (i not in exName):
+            absent.append(i)
+            print(i)
+
+    for i in ch:
+        if i not in n:
+            missing.append(i)
+
+    print("Missing names:", missing)
+    print("Excused:", exName)
 
 def main():
     credentials = None
@@ -30,6 +78,8 @@ def main():
         service = build("sheets", "v4", credentials=credentials)
         sheets = service.spreadsheets()
 
+        record(sheets)
+
         for row in range(2, 8):
             num1 = int(sheets.values().get(spreadsheetId=SPREADSHEET_ID, range=f"Sheet1!A{row}").execute().get("values")[0][0])
             num2 = int(sheets.values().get(spreadsheetId=SPREADSHEET_ID, range=f"Sheet1!B{row}").execute().get("values")[0][0])
@@ -47,4 +97,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    GUI()

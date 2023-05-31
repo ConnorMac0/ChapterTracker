@@ -4,3 +4,6 @@ spreadsheetID.py
 # API
 credentials.json
 token.json
+
+# MISC
+*.csv
