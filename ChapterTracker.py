@@ -1,124 +1,245 @@
-import os
-import spreadsheetID
+"""
+Chapter Tracker
+Author: Connor Maclachlan
+"""
+
 import pandas as pd
+from openpyxl.workbook import Workbook
+from openpyxl import load_workbook
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 from ttkthemes import ThemedTk
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+from tkinter import messagebox
 
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-SPREADSHEET_ID = spreadsheetID.testsheet
+# Chapter Tracker class 
+class ChapterTracker:
 
-root = ThemedTk(theme="plastik")
-root.title('ChapterTracker')
+    def __init__(self) -> None:
 
-frame = ttk.Frame(root)
-frame.pack()
+        self.root = ThemedTk(theme="plastik")
+        self.root.title('ChapterTracker')
 
-widgets = ttk.LabelFrame(frame, text="Enter Data")
-widgets.grid(row=0, column=0, padx=10, pady=10)
+        self.HomePage = ttk.Frame(self.root)
 
-eventName = ttk.Entry(widgets)
-eventName.insert(0, "Event Name")
-eventName.bind("<FocusIn>", lambda e: eventName.delete(0, 'end'))
-eventName.grid(row=0, column=0, sticky='ew', padx=10, pady=5)
+        self.checkInCSV = None
+        self.excusedCSV = None
+        self.members = []
 
-eventDate = ttk.Entry(widgets)
-eventDate.insert(0, "DD/MM/YYYY")
-eventDate.bind("<FocusIn>", lambda e: eventDate.delete(0, 'end'))
-eventDate.grid(row=1, column=0, sticky='ew', padx=10, pady=5)
+        self.attendanceFP = None
+        self.attendanceWB = None
+        self.activeSheet = None
+        self.sheetType = tk.IntVar()
 
-checkInBtn = ttk.Button(widgets, text="Upload Check-In CSV")
-checkInBtn.grid(row=2, column=0, sticky='ew', padx=10, pady=5)
+        self.rows = None
+        self.columns = None
+        self.currentColumn = None
 
-abscenceBtn = ttk.Button(widgets, text="Upload Abscence CSV")
-abscenceBtn.grid(row=3, column=0, sticky='ew', padx=10, pady=5)
+        self.HomePage.pack(fill="both", expand=1)
 
-seperator = ttk.Separator(widgets)
-seperator.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
+        # Home page headers
+        self.headlabel1 = ttk.Label(self.HomePage, text="Chapter Tracker", font=('Arial', 20))
+        self.headlabel1.pack(padx=10, pady=10)
 
-membersBtn = ttk.Button(widgets, text="Track Attendance")
-membersBtn.grid(row=5, column=0, sticky='ew', padx=10, pady=5)
+        self.headlabel2 = ttk.Label(self.HomePage, text="To Begin, Please Select A Spreadsheet:", font=('Arial', 18))
+        self.headlabel2.pack(padx=10, pady=10)
 
-missingNames = ttk.LabelFrame(frame, text="Missing Names")
-missingNames.grid(row=0, column=1, padx=10, pady=10)
+        # Button to select the current attendance sheet
+        self.spreadsheetSelect = ttk.Button(self.HomePage, text="Select Spreadsheet", command=lambda: self.openFile("Spreadsheet"))
+        self.spreadsheetSelect.pack(padx=10, pady=10)
 
-namesText = tk.Text(missingNames, width=20, height=14)
-namesText.pack(padx=10, pady=5)
+        # Continue label and button
+        self.contlabel = ttk.Label(self.HomePage, text="Click Continue To Proceed", font=('Arial', 18))
+        self.contlabel.pack(padx=10, pady=10)
 
-root.mainloop()
+        self.continueBtn = ttk.Button(self.HomePage, text="Continue", command=self.openEditPage)
+        self.continueBtn.pack(padx=10, pady=10)
 
-def record(service):
-    checkIn = pd.read_csv('')
-    names = pd.read_csv('')
-    excused = pd.read_csv('')
+        self.root.mainloop()
 
-    n = names['Names'].to_list()
-    ch = checkIn['Full Name'].to_list()
-    exName = excused['Full Name'].to_list()
+    def openEditPage(self):
+        """ 
+            Trasitions from home page to editing page and 
+            initializes editing page elements
+        """
+        self.EditPage = ttk.Frame(self.root)
+        
+        if self.attendanceWB is not None:
+            self.EditPage.pack(fill="both", expand=1)
+            self.HomePage.pack_forget()
 
-    for i in range(len(n)):
-        n[i] = n[i].lower().strip()
+            widgets = ttk.LabelFrame(self.EditPage, text="Enter Data")
+            widgets.grid(row=0, column=0, padx=10, pady=10)
 
-    for i in range(len(ch)):
-        ch[i] = ch[i].lower().strip()
+            self.eventName = ttk.Entry(widgets)
+            self.eventName.insert(0, "Event Name")
+            self.eventName.bind("<FocusIn>", lambda e: self.eventName.delete(0, 'end'))
+            self.eventName.grid(row=0, column=0, sticky='ew', padx=10, pady=5)
 
-    for i in range(len(exName)):
-        exName[i] = exName[i].lower().strip()
+            self.eventDate = ttk.Entry(widgets)
+            self.eventDate.insert(0, "DD/MM/YYYY")
+            self.eventDate.bind("<FocusIn>", lambda e: self.eventDate.delete(0, 'end'))
+            self.eventDate.grid(row=1, column=0, sticky='ew', padx=10, pady=5)
 
-    missing = []
-    absent = []
+            chapterSheetRadioBtn = ttk.Radiobutton(widgets, text='Chapter', variable=self.sheetType, value=0)
+            chapterSheetRadioBtn.grid(row=2, column=0, sticky='ew', padx=10, pady=5)
 
-    for i in n:
-        if (i not in ch) and (i not in exName):
-            absent.append(i)
-            print(i)
+            eventSheetRadioBtn = ttk.Radiobutton(widgets, text='Event', variable=self.sheetType, value=1)
+            eventSheetRadioBtn.grid(row=3, column=0, sticky='ew', padx=10, pady=5)
 
-    for i in ch:
-        if i not in n:
-            missing.append(i)
+            checkInBtn = ttk.Button(widgets, text="Upload Check-In CSV", command=lambda: self.openFile("CheckIn"))
+            checkInBtn.grid(row=4, column=0, sticky='ew', padx=10, pady=5)
 
-    print("Missing names:", missing)
-    print("Excused:", exName)
+            abscenceBtn = ttk.Button(widgets, text="Upload Abscence CSV", command=lambda: self.openFile("Absence"))
+            abscenceBtn.grid(row=5, column=0, sticky='ew', padx=10, pady=5)
 
-def main():
-    credentials = None
-    if os.path.exists("token.json"):
-        credentials = Credentials.from_authorized_user_file("token.json", SCOPES)
+            seperator = ttk.Separator(widgets)
+            seperator.grid(row=6, column=0, padx=10, pady=10, sticky="ew")
 
-    if not credentials or not credentials.valid:
-        if credentials and credentials.expired and credentials.refresh_token:
-            credentials.refresh(Request())
+            trackBtn = ttk.Button(widgets, text="Track Attendance", command=self.recordAttendance)
+            trackBtn.grid(row=7, column=0, sticky='ew', padx=10, pady=5)
+
+            unknownNamesFrame = ttk.LabelFrame(self.EditPage, text="Unknown Names")
+            unknownNamesFrame.grid(row=0, column=1, padx=10, pady=10)
+
+            self.unknownNamesText = tk.Text(unknownNamesFrame, width=20, height=18)
+            self.unknownNamesText.pack(padx=10, pady=5)
+
+            backBtn = ttk.Button(self.EditPage, text="Back", command=self.openHomePage)
+            backBtn.grid(row=1, column=1, sticky='ew', padx=10, pady=5)
+
 
         else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-            credentials = flow.run_local_server(port=0)
+            messagebox.showerror("Error", "Please Select An Attendance Spreadsheet")
 
-        with open("token.json", "w") as token:
-            token.write(credentials.to_json())
+    def openHomePage(self):
+        """ Returns to the home page """
+        self.EditPage.destroy()
+        self.HomePage.pack(fill="both", expand=1)
 
-    try:
-        service = build("sheets", "v4", credentials=credentials)
-        sheets = service.spreadsheets()
+    def openFile(self, fileType):
+        """ Opens selected files and initializes file pointers """
 
-        record(sheets)
+        if fileType == "Spreadsheet":
+            self.attendanceFP = filedialog.askopenfilename(initialdir='/Desktop', title='Select A File', filetypes=[('Excel Files', '*.xlsx')])
+            self.attendanceWB = load_workbook(self.attendanceFP)
+            
+        elif fileType == "CheckIn":
+            self.checkInCSV = pd.read_csv(filedialog.askopenfilename(initialdir='/Desktop', title='Select A File', filetypes=[('CSV Files', '*.csv')]))
 
-        for row in range(2, 8):
-            num1 = int(sheets.values().get(spreadsheetId=SPREADSHEET_ID, range=f"Sheet1!A{row}").execute().get("values")[0][0])
-            num2 = int(sheets.values().get(spreadsheetId=SPREADSHEET_ID, range=f"Sheet1!B{row}").execute().get("values")[0][0])
-            calc_result = num1 + num2
-            print(f"Processing {num1} + {num2}")
+        else:
+            self.excusedCSV = pd.read_csv(filedialog.askopenfilename(initialdir='/Desktop', title='Select A File', filetypes=[('CSV Files', '*.csv')]))
 
-            sheets.values().update(spreadsheetId=SPREADSHEET_ID, range=f"Sheet1!C{row}",
-                valueInputOption="USER_ENTERED", body={"values": [[f"{calc_result}"]]}).execute()
+    def processName(self, name):
+        """ Processes names from file to reduce inconsitencies and errors """
 
-            sheets.values().update(spreadsheetId=SPREADSHEET_ID, range=f"Sheet1!D{row}",
-                valueInputOption="USER_ENTERED", body={"values": [[f"Done"]]}).execute()
+        if " " in name:
+            processedName = name.lower().strip().split()
+            firstInitial = processedName[0][0]
+            lastName = processedName[1]
+            processedName = firstInitial + " " + lastName
+            return processedName
+        
+        else:
+            return name
+    
+    def selectSheet(self):
+        """ Sets desired workbook sheet to the active sheet """
 
-    except HttpError as error:
-        print(error)
+        sheet = None
+        if self.sheetType.get() == 0:
+            sheet = 'Chapters'
+        elif self.sheetType.get() == 1:
+            sheet = 'Events'
+
+        self.activeSheet = self.attendanceWB[sheet]
+        self.rows = self.activeSheet.max_row
+        self.columns = self.activeSheet.max_column
+
+    def addEvent(self):
+        """ Creates new event in active sheet """
+
+        self.currentColumn = chr(65 + self.columns)
+        self.activeSheet[self.currentColumn + '2'] = self.eventName.get() + ' ' + self.eventDate.get()
+
+    def reset(self):
+        """ Resets class attributes """
+
+        self.checkInCSV = None
+        self.excusedCSV = None
+        self.members = []
+        self.rows = None
+        self.columns = None
+        self.currentColumn = None
+
+    def recordAttendance(self):
+        """ 
+            Processes and records attendance data from various CSV files 
+            into the desired spreadsheet
+        """
+        if self.checkInCSV is None:
+            messagebox.showerror("Error", "Please Select A Check-In CSV File")
+        
+        elif self.excusedCSV is None:
+            messagebox.showerror("Error", "Please Select An Excused Absence CSV File")
+        
+        else:
+            self.unknownNamesText.config(state=tk.NORMAL)
+            self.unknownNamesText.delete('1.0', tk.END)
+            
+            self.selectSheet()
+            self.addEvent()
+
+            for cell in self.activeSheet['A']:
+                self.members.append(cell.value)
+
+            memberList = self.members[2:]
+            checkInList = self.checkInCSV['First And Last Name'].to_list()
+            excusedList = self.excusedCSV['Full Name'].to_list()
+
+            processedMembers = []
+            processedCheckIn = []
+            processedExcused = []
+
+            for i in range(len(memberList)):
+                if memberList[i] is not None:
+                    processedMembers.append(self.processName(memberList[i]))
+
+            for i in range(len(checkInList)):
+                if checkInList[i] is not None:
+                    processedCheckIn.append(self.processName(checkInList[i]))
+
+            for i in range(len(excusedList)):
+                if excusedList[i] is not None:
+                    processedExcused.append(self.processName(excusedList[i]))
+
+            missing = []
+            absent = []
+
+            for i in range(len(processedMembers)):
+
+                # Mark as absent
+                if (processedMembers[i] not in processedCheckIn) and (processedMembers[i] not in processedExcused):
+                    absent.append(memberList[i])
+                    self.activeSheet[self.currentColumn + str(i+3)] = 'A'
+                    print(memberList[i])
+
+                # Mark as excused
+                elif (processedMembers[i] not in processedCheckIn) and (processedMembers[i]  in processedExcused):
+                    self.activeSheet[self.currentColumn + str(i+3)] = 'E'
+
+                # Mark as present
+                elif (processedMembers[i] in processedCheckIn):
+                    self.activeSheet[self.currentColumn + str(i+3)] = 'P'
+
+            for i in range(len(processedCheckIn)):
+                if processedCheckIn[i] not in processedMembers:
+                    missing.append(checkInList[i])
+                    self.unknownNamesText.insert(tk.END, checkInList[i] +'\n')
+
+            self.attendanceWB.save(self.attendanceFP)
+            messagebox.showinfo("Success!", "The Data Has Been Saved Successfully")
+            self.reset()
+
+ChapterTracker()
