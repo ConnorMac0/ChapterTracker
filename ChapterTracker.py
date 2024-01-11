@@ -18,7 +18,7 @@ class ChapterTracker:
 
     def __init__(self) -> None:
 
-        self.root = ThemedTk(theme="plastik")
+        self.root = ThemedTk(theme="awdark")
         self.root.title('ChapterTracker')
 
         self.HomePage = ttk.Frame(self.root)
@@ -133,16 +133,11 @@ class ChapterTracker:
 
     def processName(self, name):
         """ Processes names from file to reduce inconsitencies and errors """
-
-        if " " in name:
-            processedName = name.lower().strip().split()
-            firstInitial = processedName[0][0]
-            lastName = processedName[1]
-            processedName = firstInitial + " " + lastName
-            return processedName
-        
-        else:
-            return name
+        processedName = name.lower().strip().split()
+        processedName[0] = processedName[0][0]
+        processedName = ' '.join(processedName)
+        print(processedName)
+        return processedName
     
     def selectSheet(self):
         """ Sets desired workbook sheet to the active sheet """
